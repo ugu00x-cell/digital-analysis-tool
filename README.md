@@ -5,7 +5,7 @@
 
 ## 🌐 デモ
 
-> **[▶ アプリを試す](https://your-app-url.streamlit.app)**  
+> **[▶ アプリを試す]([https://your-app-url.streamlit.app](https://digital-analysis-tool-esscfcgxuecerdf3riesem.streamlit.app/)**  
 > ※ Streamlit Community Cloud で無料公開中
 
 ## ✨ 主な機能
