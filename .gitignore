@@ -1,8 +1,14 @@
 __pycache__/
 *.pyc
+*.pyo
 .env
+.venv/
 *.egg-info/
 dist/
 build/
+*.csv
+*.pdf
 .vscode/
 .idea/
+.DS_Store
+Thumbs.db
