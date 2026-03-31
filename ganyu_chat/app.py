@@ -201,16 +201,29 @@ def render_sidebar() -> None:
 
 
 def get_api_key() -> str | None:
-    """APIキーを取得する。優先順位: .env/環境変数 → サイドバー入力欄。
+    """APIキーを取得する。
+    優先順位: Streamlit Secrets → .env/環境変数 → サイドバー入力欄。
+
+    Streamlit Community Cloud にデプロイした場合は
+    ダッシュボードの Secrets に ANTHROPIC_API_KEY を設定すると自動で使われる。
 
     Returns:
         有効なAPIキー文字列。未設定の場合はNone
     """
-    # 1. 環境変数（load_dotenv で .env を展開済み）
+    # 1. Streamlit Cloud の Secrets（クラウドデプロイ時）
+    try:
+        cloud_key = st.secrets.get("ANTHROPIC_API_KEY", "").strip()
+        if cloud_key:
+            return cloud_key
+    except Exception:
+        pass  # ローカル実行時は st.secrets が存在しないため無視
+
+    # 2. 環境変数（load_dotenv で .env を展開済み）
     env_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
     if env_key and not env_key.startswith("sk-ant-ここに"):
         return env_key
-    # 2. サイドバーの手入力
+
+    # 3. サイドバーの手入力
     input_key = st.session_state.get("api_key_input", "").strip()
     return input_key if input_key else None
 
