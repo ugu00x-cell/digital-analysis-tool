@@ -12,3 +12,6 @@ build/
 .idea/
 .DS_Store
 Thumbs.db
+app.log
+*.db
+pdca_dashboard/data/
