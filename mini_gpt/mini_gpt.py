@@ -21,7 +21,7 @@ N_HEAD      = 8              # アテンションヘッド数
 N_LAYER     = 6              # Transformerの層数
 DROPOUT     = 0.1
 LEARNING_RATE = 3e-4
-MAX_ITERS   = 3000           # 学習ステップ数（増やすと精度UP）
+MAX_ITERS   = 5000           # 学習ステップ数（増やすと精度UP）
 EVAL_EVERY  = 500            # 何ステップごとにlossを表示
 DEVICE      = "cuda" if torch.cuda.is_available() else "cpu"
 
