@@ -1,0 +1,15 @@
+# 企業情報を含むCSV（絶対にプッシュしない）
+auto_candidate.csv
+captcha_list.csv
+no_form_list.csv
+error_list.csv
+results_*.csv
+test_input.csv
+
+# ログ（企業URLが記録される）
+app.log
+*.log
+
+# Python
+__pycache__/
+*.pyc
