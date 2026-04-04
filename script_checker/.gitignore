@@ -1,0 +1,6 @@
+.env
+__pycache__/
+*.pyc
+app.log
+output/
+check_results/
