@@ -1,11 +1,11 @@
-# 🦋 甘雨ちゃん作ってみた
+# 🔍 Digital Analysis Tool
 
 企業のWebサイトを自動分析し、デジタル成熟度を **7項目100点満点** でスコアリングするWebアプリです。  
 スコアが低い企業ほど、Web制作・デジタルマーケティングの **営業対象候補** として抽出できます。
 
 ## 🌐 デモ
 
-> **[▶ アプリを試す]([https://your-app-url.streamlit.app](https://digital-analysis-tool-esscfcgxuecerdf3riesem.streamlit.app/)**  
+> **[▶ アプリを試す](https://digital-analysis-tool-esscfcgxuecerdf3riesem.streamlit.app/)**  
 > ※ Streamlit Community Cloud で無料公開中
 
 ## ✨ 主な機能
