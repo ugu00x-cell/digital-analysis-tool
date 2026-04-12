@@ -1,0 +1,350 @@
+{
+  "cwru": {
+    "fixed_ratio": {
+      "caution": 0.08848,
+      "warning": 0.1106,
+      "danger": 0.147467,
+      "method_params": {
+        "ratios": [
+          1.2,
+          1.5,
+          2.0
+        ]
+      }
+    },
+    "sigma": {
+      "caution": 0.078454,
+      "warning": 0.080814,
+      "danger": 0.083174,
+      "method_params": {
+        "sigma_levels": [
+          2.0,
+          3.0,
+          4.0
+        ],
+        "normal_mean": 0.073733,
+        "normal_std": 0.00236
+      }
+    },
+    "percentile": {
+      "caution": 0.077386,
+      "warning": 0.078935,
+      "danger": 0.082094,
+      "method_params": {
+        "percentiles": [
+          95.0,
+          99.0,
+          99.9
+        ]
+      }
+    },
+    "mad": {
+      "caution": 0.080712,
+      "warning": 0.08538,
+      "danger": 0.090047,
+      "method_params": {
+        "mad_levels": [
+          3.0,
+          5.0,
+          7.0
+        ],
+        "median": 0.07371,
+        "mad": 0.001574,
+        "mad_scaled": 0.002334
+      }
+    },
+    "if": {
+      "caution": 0.291807,
+      "warning": 0.281917,
+      "danger": 0.28983,
+      "method_params": {
+        "score_mean_normal": -0.431704,
+        "score_std_normal": 0.055259,
+        "score_min_normal": -0.65532
+      }
+    },
+    "ocsvm": {
+      "caution": 0.638486,
+      "warning": 0.697636,
+      "danger": 0.676815,
+      "method_params": {
+        "score_mean_normal": 0.030239,
+        "score_std_normal": 0.023379,
+        "score_min_normal": -0.000483
+      }
+    },
+    "lstm_ae": {
+      "caution": 0.671462,
+      "warning": 0.650795,
+      "danger": 0.676409,
+      "method_params": {
+        "seq_length": 30,
+        "error_mean_normal": 0.87917,
+        "error_std_normal": 0.165256,
+        "error_95pct_normal": 1.177008
+      }
+    },
+    "recommended": "fixed_ratio"
+  },
+  "nasa": {
+    "fixed_ratio": {
+      "caution": 0.092782,
+      "warning": 0.115977,
+      "danger": 0.154637,
+      "method_params": {
+        "ratios": [
+          1.2,
+          1.5,
+          2.0
+        ]
+      }
+    },
+    "sigma": {
+      "caution": 0.079641,
+      "warning": 0.080803,
+      "danger": 0.081964,
+      "method_params": {
+        "sigma_levels": [
+          2.0,
+          3.0,
+          4.0
+        ],
+        "normal_mean": 0.077318,
+        "normal_std": 0.001162
+      }
+    },
+    "percentile": {
+      "caution": 0.079223,
+      "warning": 0.079865,
+      "danger": 0.08016,
+      "method_params": {
+        "percentiles": [
+          95.0,
+          99.0,
+          99.9
+        ]
+      }
+    },
+    "mad": {
+      "caution": 0.081131,
+      "warning": 0.083646,
+      "danger": 0.08616,
+      "method_params": {
+        "mad_levels": [
+          3.0,
+          5.0,
+          7.0
+        ],
+        "median": 0.077359,
+        "mad": 0.000848,
+        "mad_scaled": 0.001257
+      }
+    },
+    "if": {
+      "caution": 0.168479,
+      "warning": 0.725001,
+      "danger": 0.35309,
+      "method_params": {
+        "score_mean_normal": -0.436041,
+        "score_std_normal": 0.054707,
+        "score_min_normal": -0.720528
+      }
+    },
+    "ocsvm": {
+      "caution": 0.199996,
+      "warning": 0.170069,
+      "danger": 0.297188,
+      "method_params": {
+        "score_mean_normal": 0.031462,
+        "score_std_normal": 0.024175,
+        "score_min_normal": -0.000382
+      }
+    },
+    "lstm_ae": {
+      "caution": 0.135658,
+      "warning": 0.139764,
+      "danger": 0.1548,
+      "method_params": {
+        "seq_length": 30,
+        "error_mean_normal": 0.723736,
+        "error_std_normal": 0.13629,
+        "error_95pct_normal": 0.830358
+      }
+    },
+    "recommended": "fixed_ratio"
+  },
+  "xjtu_sy": {
+    "fixed_ratio": {
+      "caution": 0.840254,
+      "warning": 1.050318,
+      "danger": 1.400424,
+      "method_params": {
+        "ratios": [
+          1.2,
+          1.5,
+          2.0
+        ]
+      }
+    },
+    "sigma": {
+      "caution": 1.292233,
+      "warning": 1.588244,
+      "danger": 1.884255,
+      "method_params": {
+        "sigma_levels": [
+          2.0,
+          3.0,
+          4.0
+        ],
+        "normal_mean": 0.700212,
+        "normal_std": 0.296011
+      }
+    },
+    "percentile": {
+      "caution": 1.089984,
+      "warning": 1.202124,
+      "danger": 3.395466,
+      "method_params": {
+        "percentiles": [
+          95.0,
+          99.0,
+          99.9
+        ]
+      }
+    },
+    "mad": {
+      "caution": 0.911339,
+      "warning": 1.143176,
+      "danger": 1.375013,
+      "method_params": {
+        "mad_levels": [
+          3.0,
+          5.0,
+          7.0
+        ],
+        "median": 0.563583,
+        "mad": 0.078186,
+        "mad_scaled": 0.115919
+      }
+    },
+    "if": {
+      "caution": 3.806003,
+      "warning": 4.056367,
+      "danger": 8.042008,
+      "method_params": {
+        "score_mean_normal": -0.43118,
+        "score_std_normal": 0.061724,
+        "score_min_normal": -0.799546
+      }
+    },
+    "ocsvm": {
+      "caution": 4.229594,
+      "warning": 6.525901,
+      "danger": 6.778501,
+      "method_params": {
+        "score_mean_normal": 0.181524,
+        "score_std_normal": 0.088706,
+        "score_min_normal": -0.080088
+      }
+    },
+    "lstm_ae": {
+      "caution": 5.360116,
+      "warning": 6.04272,
+      "danger": 0.517019,
+      "method_params": {
+        "seq_length": 30,
+        "error_mean_normal": 0.230731,
+        "error_std_normal": 0.693126,
+        "error_95pct_normal": 0.530236
+      }
+    },
+    "recommended": "sigma"
+  },
+  "femto": {
+    "fixed_ratio": {
+      "caution": 0.463385,
+      "warning": 0.579232,
+      "danger": 0.772309,
+      "method_params": {
+        "ratios": [
+          1.2,
+          1.5,
+          2.0
+        ]
+      }
+    },
+    "sigma": {
+      "caution": 0.545548,
+      "warning": 0.625245,
+      "danger": 0.704942,
+      "method_params": {
+        "sigma_levels": [
+          2.0,
+          3.0,
+          4.0
+        ],
+        "normal_mean": 0.386154,
+        "normal_std": 0.079697
+      }
+    },
+    "percentile": {
+      "caution": 0.528951,
+      "warning": 0.634813,
+      "danger": 0.948314,
+      "method_params": {
+        "percentiles": [
+          95.0,
+          99.0,
+          99.9
+        ]
+      }
+    },
+    "mad": {
+      "caution": 0.577908,
+      "warning": 0.713495,
+      "danger": 0.849082,
+      "method_params": {
+        "mad_levels": [
+          3.0,
+          5.0,
+          7.0
+        ],
+        "median": 0.374528,
+        "mad": 0.045726,
+        "mad_scaled": 0.067794
+      }
+    },
+    "if": {
+      "caution": 0.573217,
+      "warning": 1.552843,
+      "danger": 0.906481,
+      "method_params": {
+        "score_mean_normal": -0.402635,
+        "score_std_normal": 0.068726,
+        "score_min_normal": -0.814092
+      }
+    },
+    "ocsvm": {
+      "caution": 0.935205,
+      "warning": 3.961056,
+      "danger": 1.699352,
+      "method_params": {
+        "score_mean_normal": 0.066391,
+        "score_std_normal": 0.030448,
+        "score_min_normal": -0.000487
+      }
+    },
+    "lstm_ae": {
+      "caution": 1.007611,
+      "warning": 1.931666,
+      "danger": 0.483138,
+      "method_params": {
+        "seq_length": 30,
+        "error_mean_normal": 0.609774,
+        "error_std_normal": 1.399887,
+        "error_95pct_normal": 2.640177
+      }
+    },
+    "recommended": "sigma"
+  }
+}

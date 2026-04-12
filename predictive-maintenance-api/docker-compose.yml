@@ -1,0 +1,56 @@
+version: "3.8"
+
+services:
+  collector:
+    build: .
+    command: uvicorn services.collector.main:app --host 0.0.0.0 --port 8001
+    ports:
+      - "8001:8001"
+    volumes:
+      - db-data:/app/data
+    env_file:
+      - .env
+    environment:
+      - DB_PATH=/app/data/vibration.db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  analyzer:
+    build: .
+    command: uvicorn services.analyzer.main:app --host 0.0.0.0 --port 8002
+    ports:
+      - "8002:8002"
+    volumes:
+      - db-data:/app/data
+    env_file:
+      - .env
+    environment:
+      - DB_PATH=/app/data/vibration.db
+      - NOTIFIER_URL=http://notifier:8003
+    depends_on:
+      - collector
+      - notifier
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  notifier:
+    build: .
+    command: uvicorn services.notifier.main:app --host 0.0.0.0 --port 8003
+    ports:
+      - "8003:8003"
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  db-data:
