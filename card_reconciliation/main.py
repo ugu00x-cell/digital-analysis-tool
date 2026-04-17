@@ -25,12 +25,19 @@ from card_reconciliation.services.reporter import build_summary, write_results_c
 
 def _setup_logging() -> None:
     """ロガーの初期設定（CLAUDE.mdのフォーマットに準拠）。"""
+    # Windows(cp932)で絵文字が出せずUnicodeEncodeErrorが出るのを防ぐ
+    # stdout/stderrをUTF-8化（Python 3.7+）
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8", errors="replace")
+
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",
         handlers=[
             logging.FileHandler("app.log", encoding="utf-8"),
-            logging.StreamHandler(),
+            logging.StreamHandler(sys.stdout),
         ],
     )
 

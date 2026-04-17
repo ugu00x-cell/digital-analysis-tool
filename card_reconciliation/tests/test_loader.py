@@ -5,7 +5,20 @@ from pathlib import Path
 
 import pytest
 
+from card_reconciliation import config
 from card_reconciliation.services.loader import load_bakuraku_csv, load_order_csv
+
+
+def _order_csv_header() -> str:
+    """config に従って発注表CSVのヘッダ行を組み立てる。"""
+    cols = [
+        config.ORDER_COL_DATE,
+        config.ORDER_COL_PRODUCT,
+        config.ORDER_COL_UNIT_PRICE,
+        config.ORDER_COL_QUANTITY,
+        config.ORDER_COL_TOTAL,
+    ]
+    return ",".join(cols) + "\n"
 
 
 # --- バク楽CSVの読み込み ---
@@ -59,12 +72,15 @@ def test_load_bakuraku_missing_column_raises(tmp_path: Path) -> None:
 
 
 # --- 発注表CSVの読み込み ---
-def test_load_order_basic(tmp_path: Path) -> None:
+def test_load_order_basic(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """発注表CSVが正しく読み込まれ、再計算プロパティも計算できる。"""
+    # このテストでは絞り込みをオフにする
+    monkeypatch.setattr(config, "ORDER_CARD_FILTER", "")
+    monkeypatch.setattr(config, "ORDER_VALID_STATUSES", ())
+
     csv_path = tmp_path / "orders.csv"
     csv_path.write_text(
-        "注文日,商品名A,仕入れ値A,個数,仕入れ総額\n"
-        "2026-03-25,テスト商品,500,3,1500\n",
+        _order_csv_header() + "2026-03-25,テスト商品,500,3,1500\n",
         encoding="utf-8-sig",
     )
 
@@ -78,13 +94,16 @@ def test_load_order_basic(tmp_path: Path) -> None:
     assert order.recalculated_total == 1500
 
 
-def test_load_order_skips_broken_row(tmp_path: Path) -> None:
+def test_load_order_skips_broken_row(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """数値化できない壊れた行はスキップされ、他の行は読める。"""
+    monkeypatch.setattr(config, "ORDER_CARD_FILTER", "")
+    monkeypatch.setattr(config, "ORDER_VALID_STATUSES", ())
+
     csv_path = tmp_path / "orders.csv"
     csv_path.write_text(
-        "注文日,商品名A,仕入れ値A,個数,仕入れ総額\n"
-        "2026-03-25,OK商品,500,3,1500\n"
-        "2026-03-26,壊れた,abc,3,1500\n",
+        _order_csv_header()
+        + "2026-03-25,OK商品,500,3,1500\n"
+        + "2026-03-26,壊れた,abc,3,1500\n",
         encoding="utf-8-sig",
     )
 
@@ -92,3 +111,28 @@ def test_load_order_skips_broken_row(tmp_path: Path) -> None:
 
     assert len(orders) == 1
     assert orders[0].product == "OK商品"
+
+
+def test_load_order_card_filter(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """カード番号フィルタが効いて、対象カードのみ読み込まれる。"""
+    monkeypatch.setattr(config, "ORDER_CARD_FILTER", "4521")
+    monkeypatch.setattr(config, "ORDER_VALID_STATUSES", ())
+
+    header = (
+        f"{config.ORDER_COL_DATE},{config.ORDER_COL_PRODUCT},"
+        f"{config.ORDER_COL_UNIT_PRICE},{config.ORDER_COL_QUANTITY},"
+        f"{config.ORDER_COL_TOTAL},{config.ORDER_COL_CARD}\n"
+    )
+    csv_path = tmp_path / "orders.csv"
+    # Amazon CSVの '="1112"' 形式も含める
+    csv_path.write_text(
+        header
+        + '2026-03-25,JCB商品,500,1,500,="1112"\n'
+        + '2026-03-26,Visa商品,800,1,800,="4521"\n',
+        encoding="utf-8-sig",
+    )
+
+    orders = load_order_csv(csv_path)
+
+    assert len(orders) == 1
+    assert orders[0].product == "Visa商品"

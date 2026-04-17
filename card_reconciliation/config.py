@@ -52,12 +52,25 @@ BAKURAKU_COL_STATUS: str = "ステータス"
 # --- 発注表CSV設定 ---
 ORDER_ENCODING: str = "utf-8-sig"
 
-# 発注表CSVの列名
+# 発注表CSVの列名（Amazon注文履歴CSVの実際の列名に合わせてある）
 ORDER_COL_DATE: str = "注文日"
-ORDER_COL_PRODUCT: str = "商品名A"
-ORDER_COL_UNIT_PRICE: str = "仕入れ値A"
-ORDER_COL_QUANTITY: str = "個数"
-ORDER_COL_TOTAL: str = "仕入れ総額"
+ORDER_COL_PRODUCT: str = "商品名"
+ORDER_COL_UNIT_PRICE: str = "商品の価格（税込）"
+ORDER_COL_QUANTITY: str = "注文の数量"
+ORDER_COL_TOTAL: str = "注文の合計（税込）"
+
+# --- 発注表の絞り込み設定 ---
+# カード番号（下4桁）列と、フィルタする値
+# 空文字 "" にするとフィルタなし（全カード対象）
+# Amazon CSVでは '="4521"' のように = とダブルクォートで囲まれているので、
+# 値に "4521" が含まれているかで判定する（部分一致）
+ORDER_COL_CARD: str = "クレジットカード番号（下4桁）"
+ORDER_CARD_FILTER: str = "4521"
+
+# 注文状況列と、有効とみなすステータス
+# 空タプル () にするとフィルタなし
+ORDER_COL_STATUS: str = "注文状況"
+ORDER_VALID_STATUSES: tuple[str, ...] = ("終了",)
 
 
 # --- 出力設定 ---

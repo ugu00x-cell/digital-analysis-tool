@@ -115,9 +115,38 @@ def load_bakuraku_csv(path: Path) -> list[Transaction]:
     return transactions
 
 
+def _should_keep_order_row(row: pd.Series) -> bool:
+    """
+    発注表の1行を採用するかどうか判定する（カード・ステータスでフィルタ）。
+
+    config.ORDER_CARD_FILTER が空文字ならカード絞り込みなし。
+    config.ORDER_VALID_STATUSES が空タプルならステータス絞り込みなし。
+    """
+    # カード番号フィルタ（Amazon CSVは '="4521"' 形式で来るので部分一致）
+    if config.ORDER_CARD_FILTER:
+        card_col = config.ORDER_COL_CARD
+        if card_col in row.index:
+            card_value = str(row[card_col]) if row[card_col] is not None else ""
+            if config.ORDER_CARD_FILTER not in card_value:
+                return False
+
+    # 注文状況フィルタ
+    if config.ORDER_VALID_STATUSES:
+        status_col = config.ORDER_COL_STATUS
+        if status_col in row.index:
+            status_value = str(row[status_col]).strip() if row[status_col] is not None else ""
+            if status_value not in config.ORDER_VALID_STATUSES:
+                return False
+
+    return True
+
+
 def load_order_csv(path: Path) -> list[Order]:
     """
     発注表CSVを読み込んで Order のリストを返す。
+
+    config.ORDER_CARD_FILTER で指定されたカードのみ、
+    config.ORDER_VALID_STATUSES に含まれるステータスのみを対象にする。
 
     Args:
         path: 発注表CSVのパス
@@ -144,7 +173,13 @@ def load_order_csv(path: Path) -> list[Order]:
         raise KeyError(f"発注表CSVに必要な列がありません: {missing}")
 
     orders: list[Order] = []
+    skipped_filtered = 0
     for idx, row in df.iterrows():
+        # カード・ステータスフィルタ
+        if not _should_keep_order_row(row):
+            skipped_filtered += 1
+            continue
+
         try:
             order = Order(
                 row_index=int(idx),
@@ -159,5 +194,9 @@ def load_order_csv(path: Path) -> list[Order]:
             continue
         orders.append(order)
 
-    logger.info("発注表: %d件の発注を読み込みました", len(orders))
+    logger.info(
+        "発注表: %d件の発注を読み込みました（フィルタで除外: %d件）",
+        len(orders),
+        skipped_filtered,
+    )
     return orders
