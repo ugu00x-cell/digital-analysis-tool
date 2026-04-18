@@ -1,8 +1,0 @@
-# データファイル（大容量のためGit管理外）
-data/bearings.zip
-data/bearing1_all.npz
-data/extracted/
-data/*.csv
-
-# ログ
-app.log
