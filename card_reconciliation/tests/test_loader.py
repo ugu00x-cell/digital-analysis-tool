@@ -75,7 +75,7 @@ def test_load_bakuraku_missing_column_raises(tmp_path: Path) -> None:
 def test_load_order_basic(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """発注表CSVが正しく読み込まれ、再計算プロパティも計算できる。"""
     # このテストでは絞り込みをオフにする
-    monkeypatch.setattr(config, "ORDER_CARD_FILTER", "")
+    monkeypatch.setattr(config, "ORDER_CARD_FILTERS", ())
     monkeypatch.setattr(config, "ORDER_VALID_STATUSES", ())
 
     csv_path = tmp_path / "orders.csv"
@@ -96,7 +96,7 @@ def test_load_order_basic(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
 
 def test_load_order_skips_broken_row(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """数値化できない壊れた行はスキップされ、他の行は読める。"""
-    monkeypatch.setattr(config, "ORDER_CARD_FILTER", "")
+    monkeypatch.setattr(config, "ORDER_CARD_FILTERS", ())
     monkeypatch.setattr(config, "ORDER_VALID_STATUSES", ())
 
     csv_path = tmp_path / "orders.csv"
@@ -113,9 +113,9 @@ def test_load_order_skips_broken_row(tmp_path: Path, monkeypatch: pytest.MonkeyP
     assert orders[0].product == "OK商品"
 
 
-def test_load_order_card_filter(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """カード番号フィルタが効いて、対象カードのみ読み込まれる。"""
-    monkeypatch.setattr(config, "ORDER_CARD_FILTER", "4521")
+def test_load_order_card_filter_single(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """カード番号フィルタが効いて、対象カードのみ読み込まれる（単一カード）。"""
+    monkeypatch.setattr(config, "ORDER_CARD_FILTERS", ("4521",))
     monkeypatch.setattr(config, "ORDER_VALID_STATUSES", ())
 
     header = (
@@ -136,3 +136,49 @@ def test_load_order_card_filter(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
 
     assert len(orders) == 1
     assert orders[0].product == "Visa商品"
+
+
+def test_load_order_card_filter_multiple(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """複数カードを同時に対象にできる（OR条件）。"""
+    monkeypatch.setattr(config, "ORDER_CARD_FILTERS", ("4521", "1112"))
+    monkeypatch.setattr(config, "ORDER_VALID_STATUSES", ())
+
+    header = (
+        f"{config.ORDER_COL_DATE},{config.ORDER_COL_PRODUCT},"
+        f"{config.ORDER_COL_UNIT_PRICE},{config.ORDER_COL_QUANTITY},"
+        f"{config.ORDER_COL_TOTAL},{config.ORDER_COL_CARD}\n"
+    )
+    csv_path = tmp_path / "orders.csv"
+    csv_path.write_text(
+        header
+        + '2026-03-25,JCB商品,500,1,500,="1112"\n'
+        + '2026-03-26,Visa商品,800,1,800,="4521"\n'
+        + '2026-03-27,対象外商品,300,1,300,="9999"\n',
+        encoding="utf-8-sig",
+    )
+
+    orders = load_order_csv(csv_path)
+
+    assert len(orders) == 2
+    products = {o.product for o in orders}
+    assert products == {"JCB商品", "Visa商品"}
+
+
+def test_load_order_card_filter_missing_column_raises(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """カードフィルタが有効なのに列が無ければKeyError（設定ミス検出）。"""
+    monkeypatch.setattr(config, "ORDER_CARD_FILTERS", ("4521",))
+    monkeypatch.setattr(config, "ORDER_VALID_STATUSES", ())
+
+    # カード列を意図的に欠落させる
+    csv_path = tmp_path / "orders.csv"
+    csv_path.write_text(
+        _order_csv_header() + "2026-03-25,商品,500,1,500\n",
+        encoding="utf-8-sig",
+    )
+
+    with pytest.raises(KeyError, match=config.ORDER_COL_CARD):
+        load_order_csv(csv_path)

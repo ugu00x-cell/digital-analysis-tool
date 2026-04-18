@@ -91,10 +91,8 @@ def load_bakuraku_csv(path: Path) -> list[Transaction]:
     transactions: list[Transaction] = []
     for idx, row in df.iterrows():
         status = str(row[config.BAKURAKU_COL_STATUS]).strip()
-        # 確定以外や除外ステータスはスキップ
+        # 確定以外（返品・キャンセル等）はスキップ
         if status != config.BAKURAKU_VALID_STATUS:
-            continue
-        if status in config.BAKURAKU_EXCLUDED_STATUSES:
             continue
 
         try:
@@ -119,24 +117,26 @@ def _should_keep_order_row(row: pd.Series) -> bool:
     """
     発注表の1行を採用するかどうか判定する（カード・ステータスでフィルタ）。
 
-    config.ORDER_CARD_FILTER が空文字ならカード絞り込みなし。
+    config.ORDER_CARD_FILTERS が空タプルならカード絞り込みなし。
     config.ORDER_VALID_STATUSES が空タプルならステータス絞り込みなし。
+
+    注: 呼び出し側で列存在は事前検証済みの前提（load_order_csv 内）。
     """
-    # カード番号フィルタ（Amazon CSVは '="4521"' 形式で来るので部分一致）
-    if config.ORDER_CARD_FILTER:
-        card_col = config.ORDER_COL_CARD
-        if card_col in row.index:
-            card_value = str(row[card_col]) if row[card_col] is not None else ""
-            if config.ORDER_CARD_FILTER not in card_value:
-                return False
+    # カード番号フィルタ（Amazon CSVは '="4521"' 形式で来るので部分一致・OR条件）
+    if config.ORDER_CARD_FILTERS:
+        card_value = str(row[config.ORDER_COL_CARD]) if row[config.ORDER_COL_CARD] is not None else ""
+        if not any(card in card_value for card in config.ORDER_CARD_FILTERS):
+            return False
 
     # 注文状況フィルタ
     if config.ORDER_VALID_STATUSES:
-        status_col = config.ORDER_COL_STATUS
-        if status_col in row.index:
-            status_value = str(row[status_col]).strip() if row[status_col] is not None else ""
-            if status_value not in config.ORDER_VALID_STATUSES:
-                return False
+        status_value = (
+            str(row[config.ORDER_COL_STATUS]).strip()
+            if row[config.ORDER_COL_STATUS] is not None
+            else ""
+        )
+        if status_value not in config.ORDER_VALID_STATUSES:
+            return False
 
     return True
 
@@ -145,7 +145,7 @@ def load_order_csv(path: Path) -> list[Order]:
     """
     発注表CSVを読み込んで Order のリストを返す。
 
-    config.ORDER_CARD_FILTER で指定されたカードのみ、
+    config.ORDER_CARD_FILTERS に指定されたカードのみ、
     config.ORDER_VALID_STATUSES に含まれるステータスのみを対象にする。
 
     Args:
@@ -168,6 +168,12 @@ def load_order_csv(path: Path) -> list[Order]:
         config.ORDER_COL_QUANTITY,
         config.ORDER_COL_TOTAL,
     ]
+    # フィルタが有効なら対応列も必須（設定ミス・CSV仕様変更を早期検出するため）
+    if config.ORDER_CARD_FILTERS:
+        required.append(config.ORDER_COL_CARD)
+    if config.ORDER_VALID_STATUSES:
+        required.append(config.ORDER_COL_STATUS)
+
     missing = [col for col in required if col not in df.columns]
     if missing:
         raise KeyError(f"発注表CSVに必要な列がありません: {missing}")
