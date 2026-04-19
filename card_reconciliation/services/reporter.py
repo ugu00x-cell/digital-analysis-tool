@@ -20,7 +20,7 @@ OUTPUT_COLUMNS: tuple[str, ...] = (
     "当初取引内容",
     "バク楽ステータス",
     "マッチした注文日",
-    "商品名A",
+    "商品名",
     "消込ステータス",
     "備考",
 )
@@ -37,7 +37,7 @@ def _result_to_row(result: MatchResult) -> dict[str, object]:
         "当初取引内容": tx.store if tx else "",
         "バク楽ステータス": tx.status if tx else "",
         "マッチした注文日": order.ordered_at.isoformat() if order else "",
-        "商品名A": order.product if order else "",
+        "商品名": order.product if order else "",
         "消込ステータス": result.status_label,
         "備考": result.note,
     }

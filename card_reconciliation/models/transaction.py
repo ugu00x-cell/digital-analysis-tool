@@ -34,7 +34,7 @@ class Order:
     Attributes:
         row_index: 元CSVの行番号（トレース用）
         ordered_at: 注文日
-        product: 商品名A
+        product: 商品名
         unit_price: 仕入れ値A（単価）
         quantity: 個数
         total: 仕入れ総額（手打ち値）
