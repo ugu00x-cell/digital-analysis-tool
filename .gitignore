@@ -8,6 +8,13 @@ dist/
 build/
 *.csv
 *.pdf
+*.zip
+
+# 顧客固有情報を含む納品物
+form_sender_納品/
+form_sender_納品.zip
+form_sender_delivery.zip
+
 .vscode/
 .idea/
 .DS_Store
