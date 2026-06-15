@@ -78,3 +78,6 @@ def render() -> None:
         preview = body.replace("{{company_name}}", "テスト株式会社")
         st.text(f"件名: {subject}")
         st.text(preview)
+
+
+render()

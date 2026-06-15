@@ -50,15 +50,28 @@ def get_sent_urls() -> set[str]:
 def save_log(
     url: str, company: str, status: str,
     error: str = "", retry: int = 0, ai_used: bool = False,
+    captcha_solved: bool = False,
 ) -> None:
-    """送信ログを記録する"""
+    """送信ログを記録する
+
+    Args:
+        url: 送信先URL
+        company: 企業名
+        status: 送信ステータス
+        error: エラー理由
+        retry: リトライ回数
+        ai_used: AI補完使用有無
+        captcha_solved: CAPTCHA解決有無（2Captcha利用時）
+    """
     conn = _conn()
     now = datetime.now().isoformat()
     conn.execute(
         "INSERT INTO send_logs "
         "(url, company_name, status, error_reason, retry_count, "
-        "ai_used_flag, sent_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (url, company, status, error, retry, int(ai_used), now),
+        "ai_used_flag, captcha_solved_flag, sent_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (url, company, status, error, retry,
+         int(ai_used), int(captcha_solved), now),
     )
     conn.commit()
     conn.close()

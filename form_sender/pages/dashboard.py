@@ -32,148 +32,6 @@ from utils.form_sender import send_to_company, random_wait
 init_db()
 logger = logging.getLogger(__name__)
 
-st.header("📊 ダッシュボード")
-
-# --- 統計表示 ---
-stats = get_log_stats()
-
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("総送信数", stats["total"])
-col2.metric("成功数", stats["success"])
-col3.metric("成功率", f"{stats['success_rate']:.1f}%")
-col4.metric("AI利用成功率", f"{stats['ai_rate']:.1f}%")
-
-st.divider()
-st.info(f"📅 今日の送信数: **{stats['today_count']}** 件")
-
-# ステータス内訳
-if stats["by_status"]:
-    st.subheader("ステータス内訳")
-    labels = {
-        "success": "✅ 送信成功",
-        "captcha": "🔒 CAPTCHA検出",
-        "no_form": "❌ フォームなし",
-        "timeout": "⏱️ タイムアウト",
-        "error": "⚠️ 送信失敗",
-        "robots_blocked": "🤖 robots.txt拒否",
-        "skip_domain": "🔁 同一ドメイン制限",
-    }
-    for status, count in stats["by_status"].items():
-        label = labels.get(status, status)
-        st.write(f"{label}: **{count}** 件")
-
-st.divider()
-
-# --- 事前チェック ---
-st.subheader("🔍 事前チェック")
-
-checks_ok = True
-
-# 1. プロファイルチェック
-sender = st.session_state.get("sender")
-if not sender or not sender.get("email"):
-    st.warning("⚠️ 差出人プロファイルが未設定です → 設定画面で登録してください")
-    checks_ok = False
-else:
-    st.success(f"✅ 差出人: {sender.get('name', '未設定')}")
-
-# 2. テンプレートチェック
-template = st.session_state.get("template", "")
-if not template:
-    st.warning("⚠️ 送信テンプレートが未設定です → 設定画面で選択してください")
-    checks_ok = False
-else:
-    st.success(f"✅ テンプレート: {template[:30]}...")
-
-# 3. CSVチェック
-if "company_list" not in st.session_state:
-    st.warning("⚠️ 企業リストが未読み込みです → リスト管理でCSVをアップロードしてください")
-    checks_ok = False
-else:
-    df = st.session_state["company_list"]
-    st.success(f"✅ 企業リスト: {len(df)}件")
-
-# 4. Gemini APIキー（任意）
-api_key = st.session_state.get("gemini_api_key", "")
-if api_key:
-    st.success("✅ Gemini APIキー: 設定済み")
-else:
-    st.info("ℹ️ Gemini APIキー未設定（AI補完なしで動作します）")
-
-st.divider()
-
-# --- セッション途中再開 ---
-incomplete = get_incomplete_session()
-if incomplete:
-    st.warning(
-        f"⚠️ 前回のセッションが途中です "
-        f"（{incomplete['current_index']}/{incomplete['total']}件完了）"
-    )
-    col_r1, col_r2 = st.columns(2)
-    with col_r1:
-        if st.button("▶️ 途中から再開", key="resume_session"):
-            st.session_state["resume_from"] = incomplete["current_index"]
-            st.session_state["resume_session_id"] = incomplete["session_id"]
-    with col_r2:
-        if st.button("🔄 最初からやり直す", key="clear_session"):
-            finish_session(incomplete["session_id"], "cancelled")
-            st.rerun()
-
-# --- 送信実行セクション ---
-st.subheader("🚀 送信実行")
-
-if not checks_ok:
-    st.warning("事前チェックをすべてクリアしてから送信してください")
-else:
-    df = st.session_state["company_list"]
-
-    # 送信済みURL除外
-    sent_urls = get_sent_urls()
-    unsent = df[
-        (df["ステータス"] == "未送信") &
-        (~df["URL"].isin(sent_urls))
-    ]
-
-    # 設定値の取得
-    daily_limit = int(get_setting("daily_limit", "200"))
-    send_interval = int(get_setting("send_interval", "10"))
-
-    if len(unsent) == 0:
-        st.info("未送信の企業はありません")
-    else:
-        col_a, col_b = st.columns(2)
-        with col_a:
-            headless = st.checkbox(
-                "ヘッドレスモード（ブラウザ非表示）", value=True
-            )
-        with col_b:
-            dry_run = st.checkbox("ドライラン（送信ボタンを押さない）")
-
-        remaining = max(0, daily_limit - stats["today_count"])
-        target = min(len(unsent), remaining)
-
-        st.info(
-            f"未送信: **{len(unsent)}**件 / "
-            f"1日上限: **{daily_limit}**件 / "
-            f"残り枠: **{remaining}**件 / "
-            f"送信間隔: **{send_interval}**秒"
-        )
-
-        # 途中再開の場合、開始インデックスを調整
-        resume_from = st.session_state.pop("resume_from", 0)
-
-        if remaining == 0:
-            st.error("🚫 本日の送信上限に達しています")
-        elif st.button(
-            f"📨 {target}件に送信開始",
-            type="primary",
-            disabled=target == 0,
-        ):
-            _run_sending(
-                df, unsent, target, headless, dry_run,
-                send_interval, resume_from,
-            )
-
 
 def _run_sending(
     df, unsent, target: int, headless: bool,
@@ -262,6 +120,7 @@ def _run_sending(
             "error": "送信失敗", "dry_run": "ドライラン完了",
             "skip_spa": "SPA検出", "skip_iframe": "iframeフォーム",
             "skip_file_upload": "ファイル添付必須",
+            "submitted_unverified": "送信完了未確認（要確認）",
         }
         status_label = label_map.get(result["status"], "送信失敗")
         df.loc[idx, "ステータス"] = status_label
@@ -274,6 +133,7 @@ def _run_sending(
             error=result.get("detail", ""),
             retry=result.get("retry_count", 0),
             ai_used=result.get("ai_used", False),
+            captcha_solved=result.get("captcha_solved", False),
         )
 
         # 進捗更新
@@ -301,3 +161,165 @@ def _run_sending(
     status_area.success(
         f"✅ 送信完了 - 成功: {success_count}件 / 失敗: {fail_count}件"
     )
+
+
+st.header("📊 ダッシュボード")
+
+# --- 統計表示 ---
+stats = get_log_stats()
+
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("総送信数", stats["total"])
+col2.metric("成功数", stats["success"])
+col3.metric("成功率", f"{stats['success_rate']:.1f}%")
+col4.metric("AI利用成功率", f"{stats['ai_rate']:.1f}%")
+
+st.divider()
+st.info(f"📅 今日の送信数: **{stats['today_count']}** 件")
+
+# ステータス内訳
+if stats["by_status"]:
+    st.subheader("ステータス内訳")
+    labels = {
+        "success": "✅ 送信成功",
+        "captcha": "🔒 CAPTCHA検出",
+        "no_form": "❌ フォームなし",
+        "timeout": "⏱️ タイムアウト",
+        "error": "⚠️ 送信失敗",
+        "robots_blocked": "🤖 robots.txt拒否",
+        "skip_domain": "🔁 同一ドメイン制限",
+    }
+    for status, count in stats["by_status"].items():
+        label = labels.get(status, status)
+        st.write(f"{label}: **{count}** 件")
+
+st.divider()
+
+# --- 事前チェック ---
+st.subheader("🔍 事前チェック")
+
+checks_ok = True
+
+# 1. プロファイルチェック（session_stateになければDBから自動ロード）
+sender = st.session_state.get("sender")
+if not sender or not sender.get("email"):
+    from utils.db_profiles import get_profiles
+    profiles = get_profiles()
+    if profiles:
+        sender = profiles[0]
+        st.session_state["sender"] = sender
+        st.info(f"💡 プロファイル「{sender.get('name', '')}」を自動選択しました（変更は設定画面で）")
+
+if not sender or not sender.get("email"):
+    st.warning("⚠️ 差出人プロファイルが未設定です → 設定画面で登録してください")
+    checks_ok = False
+else:
+    st.success(f"✅ 差出人: {sender.get('name', '未設定')}")
+
+# 2. テンプレートチェック（session_stateになければDBから自動ロード）
+template = st.session_state.get("template", "")
+if not template:
+    from utils.db_templates import get_templates
+    templates = get_templates()
+    if templates:
+        template = templates[0]["body"]
+        st.session_state["template"] = template
+        st.info(f"💡 テンプレート「{templates[0]['name']}」を自動選択しました（変更は設定画面で）")
+
+if not template:
+    st.warning("⚠️ 送信テンプレートが未設定です → 設定画面で選択してください")
+    checks_ok = False
+else:
+    st.success(f"✅ テンプレート: {template[:30]}...")
+
+# 3. CSVチェック
+if "company_list" not in st.session_state:
+    st.warning("⚠️ 企業リストが未読み込みです → リスト管理でCSVをアップロードしてください")
+    checks_ok = False
+else:
+    df = st.session_state["company_list"]
+    st.success(f"✅ 企業リスト: {len(df)}件")
+
+# 4. Gemini APIキー（任意）
+# session_state → DB → .env の順で確認（リロード後もDBから復元）
+api_key = st.session_state.get("gemini_api_key", "") or get_setting("gemini_api_key", "")
+if api_key:
+    # session_stateにも反映しておく（同セッション内の後続処理で使えるように）
+    st.session_state["gemini_api_key"] = api_key
+    st.success("✅ Gemini APIキー: 設定済み")
+else:
+    st.info("ℹ️ Gemini APIキー未設定（AI補完なしで動作します）")
+
+st.divider()
+
+# --- セッション途中再開 ---
+incomplete = get_incomplete_session()
+if incomplete:
+    st.warning(
+        f"⚠️ 前回のセッションが途中です "
+        f"（{incomplete['current_index']}/{incomplete['total']}件完了）"
+    )
+    col_r1, col_r2 = st.columns(2)
+    with col_r1:
+        if st.button("▶️ 途中から再開", key="resume_session"):
+            st.session_state["resume_from"] = incomplete["current_index"]
+            st.session_state["resume_session_id"] = incomplete["session_id"]
+    with col_r2:
+        if st.button("🔄 最初からやり直す", key="clear_session"):
+            finish_session(incomplete["session_id"], "cancelled")
+            st.rerun()
+
+# --- 送信実行セクション ---
+st.subheader("🚀 送信実行")
+
+if not checks_ok:
+    st.warning("事前チェックをすべてクリアしてから送信してください")
+else:
+    df = st.session_state["company_list"]
+
+    # 送信済みURL除外
+    sent_urls = get_sent_urls()
+    unsent = df[
+        (df["ステータス"] == "未送信") &
+        (~df["URL"].isin(sent_urls))
+    ]
+
+    # 設定値の取得
+    daily_limit = int(get_setting("daily_limit", "200"))
+    send_interval = int(get_setting("send_interval", "10"))
+
+    if len(unsent) == 0:
+        st.info("未送信の企業はありません")
+    else:
+        col_a, col_b = st.columns(2)
+        with col_a:
+            headless = st.checkbox(
+                "ヘッドレスモード（ブラウザ非表示）", value=True
+            )
+        with col_b:
+            dry_run = st.checkbox("ドライラン（送信ボタンを押さない）")
+
+        remaining = max(0, daily_limit - stats["today_count"])
+        target = min(len(unsent), remaining)
+
+        st.info(
+            f"未送信: **{len(unsent)}**件 / "
+            f"1日上限: **{daily_limit}**件 / "
+            f"残り枠: **{remaining}**件 / "
+            f"送信間隔: **{send_interval}**秒"
+        )
+
+        # 途中再開の場合、開始インデックスを調整
+        resume_from = st.session_state.pop("resume_from", 0)
+
+        if remaining == 0:
+            st.error("🚫 本日の送信上限に達しています")
+        elif st.button(
+            f"📨 {target}件に送信開始",
+            type="primary",
+            disabled=target == 0,
+        ):
+            _run_sending(
+                df, unsent, target, headless, dry_run,
+                send_interval, resume_from,
+            )

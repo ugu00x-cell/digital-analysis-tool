@@ -72,6 +72,7 @@ def init_db() -> None:
             error_reason TEXT DEFAULT '',
             retry_count INTEGER DEFAULT 0,
             ai_used_flag INTEGER DEFAULT 0,
+            captcha_solved_flag INTEGER DEFAULT 0,
             sent_at TEXT NOT NULL
         )
     """)
@@ -110,6 +111,8 @@ def init_db() -> None:
 
     # マイグレーション: form_cacheにhtml_signature列を追加
     _migrate_form_cache(cur)
+    # マイグレーション: send_logsにcaptcha_solved_flag列を追加
+    _migrate_send_logs(cur)
 
     conn.commit()
     conn.close()
@@ -126,3 +129,15 @@ def _migrate_form_cache(cur) -> None:
             "ALTER TABLE form_cache ADD COLUMN html_signature TEXT DEFAULT ''"
         )
         logger.info("マイグレーション: form_cacheにhtml_signature列を追加")
+
+
+def _migrate_send_logs(cur) -> None:
+    """send_logsテーブルのマイグレーションを実行する"""
+    cur.execute("PRAGMA table_info(send_logs)")
+    columns = {row[1] for row in cur.fetchall()}
+    if "captcha_solved_flag" not in columns:
+        cur.execute(
+            "ALTER TABLE send_logs ADD COLUMN captcha_solved_flag "
+            "INTEGER DEFAULT 0"
+        )
+        logger.info("マイグレーション: send_logsにcaptcha_solved_flag列を追加")

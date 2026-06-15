@@ -43,14 +43,44 @@ FIELD_PATTERNS: dict[str, list[str]] = {
     "email": [
         "email", "mail", "メール", "e-mail",
     ],
+    "email_confirm": [
+        "email_confirm", "email_confirmation", "confirm_email",
+        "メール確認", "メールアドレス確認", "メールアドレス再入力",
+        "再入力", "email2", "mail2", "confirm", "confirmation",
+        "email_check", "mail_check",
+    ],
     "phone": [
         "tel", "phone", "denwa", "電話", "携帯",
+    ],
+    "phone1": [
+        "tel1", "phone1", "tel-1", "phone-1", "tel_1", "phone_01",
+        "tel01", "telno1", "phonenum1",
+    ],
+    "phone2": [
+        "tel2", "phone2", "tel-2", "phone-2", "tel_2", "phone_02",
+        "tel02", "telno2", "phonenum2",
+    ],
+    "phone3": [
+        "tel3", "phone3", "tel-3", "phone-3", "tel_3", "phone_03",
+        "tel03", "telno3", "phonenum3",
     ],
     "postal": [
         "zip", "postal", "郵便", "〒", "zipcode", "postcode",
     ],
     "address": [
         "address", "住所", "所在地", "addr",
+    ],
+    "prefecture": [
+        "pref", "prefecture", "都道府県", "ken", "todofuken",
+        "addr_pref", "address_pref", "state", "province",
+    ],
+    "city": [
+        "city", "市区町村", "addr1", "address1", "addr01",
+        "shiku", "municipal", "city_name",
+    ],
+    "street": [
+        "street", "addr2", "address2", "addr02", "番地以降",
+        "banchi", "apartment", "building", "addr3", "address3",
     ],
     "subject": [
         "subject", "title", "件名", "タイトル", "用件",
@@ -85,6 +115,9 @@ CONTACT_URL_GUESSES = [
 def check_robots_txt(url: str) -> bool:
     """robots.txtでクローリングが許可されているか確認する
 
+    直接フォームURL（パスが / 以外）の場合はチェックをスキップする。
+    ユーザーが明示的に指定したURLへの送信はクローリングではないため。
+
     Args:
         url: 対象URL
 
@@ -92,6 +125,14 @@ def check_robots_txt(url: str) -> bool:
         許可されていればTrue、拒否またはエラーならFalse
     """
     parsed = urlparse(url)
+
+    # 直接フォームURLが渡された場合はrobots.txtチェックをスキップ
+    # （ルートURL以外 = ユーザーが明示的に指定したページへのアクセス）
+    path = parsed.path.rstrip("/")
+    if path and path != "":
+        logger.info("直接URL指定のためrobots.txtチェックをスキップ: %s", url[:60])
+        return True
+
     robots_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
 
     try:
@@ -441,10 +482,14 @@ def build_virtual_form(soup: BeautifulSoup) -> Optional[Tag]:
 
 
 def _get_field_hints(elem: Tag) -> str:
-    """フォーム要素からヒント文字列を収集する"""
+    """フォーム要素からヒント文字列を収集する
+
+    name/id/placeholder/aria-label/autocomplete 属性に加え、
+    テーブルレイアウト（th+td）・dl/dt 構造のラベルテキストも収集する。
+    """
     hints: list[str] = []
 
-    for attr in ["name", "id", "placeholder", "aria-label"]:
+    for attr in ["name", "id", "placeholder", "aria-label", "autocomplete", "data-name"]:
         val = elem.get(attr, "")
         if val:
             hints.append(str(val))
@@ -452,24 +497,82 @@ def _get_field_hints(elem: Tag) -> str:
     hints.append(elem.get("type", ""))
 
     # 親label
-    parent = elem.find_parent("label")
-    if parent:
-        hints.append(parent.get_text(strip=True))
+    parent_label = elem.find_parent("label")
+    if parent_label:
+        hints.append(parent_label.get_text(strip=True))
 
-    # for属性のlabel
+    # for属性のlabel（フォーム全体スコープで検索）
     elem_id = elem.get("id", "")
     if elem_id:
-        root = elem.find_parent()
-        if root:
-            label = root.find("label", attrs={"for": elem_id})
+        form_root = elem.find_parent("form") or elem.find_parent()
+        if form_root:
+            label = form_root.find("label", attrs={"for": elem_id})
             if label:
                 hints.append(label.get_text(strip=True))
+
+    # テーブルレイアウト: 同じ <tr> 内の <th> テキストを取得
+    parent_tr = elem.find_parent("tr")
+    if parent_tr:
+        th = parent_tr.find("th")
+        if th:
+            hints.append(th.get_text(strip=True))
+        # td内のlabelも取得（別セルに label がある場合）
+        for lbl in parent_tr.find_all("label"):
+            txt = lbl.get_text(strip=True)
+            if txt:
+                hints.append(txt)
+
+    # dl/dt レイアウト: 前の <dt> テキストを取得
+    parent_dd = elem.find_parent("dd")
+    if parent_dd:
+        dt = parent_dd.find_previous_sibling("dt")
+        if dt:
+            hints.append(dt.get_text(strip=True))
+
+    # div/p ラベルパターン: 直前の兄弟要素のテキストを取得
+    parent_elem = elem.parent
+    if parent_elem:
+        prev_sib = parent_elem.find_previous_sibling()
+        if prev_sib and prev_sib.name in ("div", "p", "span", "td"):
+            txt = prev_sib.get_text(strip=True)
+            if txt and len(txt) < 30:  # 長すぎるテキストは除外
+                hints.append(txt)
 
     return " ".join(hints).lower()
 
 
+# HTML5 autocomplete属性 → フィールドタイプの直接マッピング
+_AUTOCOMPLETE_MAP: dict[str, str] = {
+    "name": "name",
+    "family-name": "last_name",
+    "given-name": "first_name",
+    "email": "email",
+    "tel": "phone",
+    "postal-code": "postal",
+    "address-line1": "address",
+    "address-line2": "street",
+    "address-level1": "prefecture",
+    "address-level2": "city",
+    "organization": "company",
+    "organization-title": "subject",
+}
+
+
 def classify_field(elem: Tag) -> Optional[str]:
-    """フォーム要素のフィールドタイプを推定する"""
+    """フォーム要素のフィールドタイプを推定する
+
+    優先順位:
+    1. HTML5 autocomplete 属性（最も信頼性が高い）
+    2. input type属性（email/tel は確定）
+    3. textarea は message 確定
+    4. FIELD_PATTERNS によるヒント文字列マッチング
+    """
+    # 1. autocomplete属性による確定マッピング
+    autocomplete = elem.get("autocomplete", "")
+    if autocomplete in _AUTOCOMPLETE_MAP:
+        return _AUTOCOMPLETE_MAP[autocomplete]
+
+    # 2. type属性による確定判定
     if elem.get("type") == "email":
         return "email"
     if elem.get("type") == "tel":

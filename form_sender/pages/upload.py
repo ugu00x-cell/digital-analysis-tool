@@ -29,12 +29,29 @@ uploaded = st.file_uploader(
 )
 
 if uploaded is not None:
-    try:
-        # chunksize分割で大容量CSV対応
-        chunks = pd.read_csv(uploaded, chunksize=CHUNK_SIZE)
-        df = pd.concat(chunks, ignore_index=True)
-    except Exception as e:
-        st.error(f"CSV読み込みエラー: {e}")
+    # 文字コード自動判定（UTF-8 → Shift-JIS → EUC-JP）
+    import io
+    raw_bytes = uploaded.getvalue()
+    df = None
+    last_error = None
+    for enc in ["utf-8-sig", "utf-8", "cp932", "shift_jis", "euc_jp"]:
+        try:
+            chunks = pd.read_csv(
+                io.BytesIO(raw_bytes), chunksize=CHUNK_SIZE, encoding=enc
+            )
+            df = pd.concat(chunks, ignore_index=True)
+            if enc not in ("utf-8-sig", "utf-8"):
+                st.info(f"💡 {enc}でCSVを読み込みました（Excel保存形式等に対応）")
+            break
+        except (UnicodeDecodeError, pd.errors.ParserError) as e:
+            last_error = e
+            continue
+
+    if df is None:
+        st.error(
+            f"❌ CSV読み込みエラー: 文字コードが判別できません。\n\n"
+            f"対応形式: UTF-8、Shift-JIS、EUC-JP\n\n詳細: {last_error}"
+        )
         st.stop()
 
     # 必須カラムチェック

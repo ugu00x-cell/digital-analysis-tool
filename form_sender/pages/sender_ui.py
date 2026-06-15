@@ -5,9 +5,8 @@ import time
 
 import streamlit as st
 
-from config import DAILY_LIMIT
-from engine.learner import get_stats
-from engine.sender import random_wait, send_to_company
+from utils.db_logs import get_log_stats, get_setting
+from utils.form_sender import random_wait, send_to_company
 
 logger = logging.getLogger(__name__)
 
@@ -41,17 +40,33 @@ def render() -> None:
         st.info("未送信の企業はありません")
         return
 
-    # 送信設定
+    # Gemini APIキー未設定の警告（session_state → DB → .env の順で確認）
+    gemini_key = (
+        st.session_state.get("gemini_api_key", "")
+        or get_setting("gemini_api_key", "")
+    )
+    if not gemini_key:
+        st.warning(
+            "⚠️ **Gemini APIキーが未設定です。**\n\n"
+            "AIによるフォーム解析が無効になるため、フィールドマッピングの精度が下がり "
+            "「送信完了未確認」や「送信失敗」が増える可能性があります。\n\n"
+            "設定画面でGemini APIキーを入力・保存してください。",
+            icon="⚠️",
+        )
+
+    # 送信設定（DBから保存済みの値を読み込む）
     col1, col2 = st.columns(2)
     with col1:
         daily_limit = st.number_input(
-            "1日の送信上限", min_value=1, value=DAILY_LIMIT
+            "1日の送信上限",
+            min_value=1,
+            value=int(get_setting("daily_limit", "200")),
         )
     with col2:
         headless = st.checkbox("ヘッドレスモード（ブラウザ非表示）")
 
     # 今日の送信数チェック
-    stats = get_stats()
+    stats = get_log_stats()
     remaining = max(0, daily_limit - stats["today_count"])
     st.info(
         f"未送信: **{len(unsent)}**件 / "
@@ -128,3 +143,6 @@ def _execute_sending(
 
     progress.progress(1.0, text="送信完了！")
     status_area.success(f"✅ {target_count}件の送信処理が完了しました")
+
+
+render()

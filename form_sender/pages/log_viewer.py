@@ -77,3 +77,6 @@ def _save_log_csv(df: pd.DataFrame, timestamp: str) -> None:
     if not path.exists():
         df.to_csv(path, index=False, encoding="utf-8-sig")
         logger.info("ログCSV保存: %s", path)
+
+
+render()

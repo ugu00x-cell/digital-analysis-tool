@@ -2,10 +2,29 @@
 __pycache__/
 *.pyc
 *.log
-data/input/
-data/logs/
+data/
 db/
 
-# クライアント固有情報を含むスクリプト
+# 送信結果CSV（クライアントデータ含む）
+*.csv
+send_logs_*.csv
+test_100_result_*.csv
+
+# クライアント固有情報・APIキーを含む開発用スクリプト
 dry_run_client.py
 dry_run_client_v2.py
+dry_run_captcha_5.py
+real_send_100.py
+run_100_test.py
+make_summary_csv.py
+
+# その他の開発用ファイル
+app.log
+captcha_retry.csv
+error_retry.csv
+robots_blocked_retry.csv
+final_error_retry.csv
+real_send_*.log
+real_send_*.py
+dry_run_*.log
+dry_run_*.py

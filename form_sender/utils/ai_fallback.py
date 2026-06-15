@@ -71,12 +71,22 @@ JSONのみを返してください。説明文は不要です。"""
 
 
 def _get_api_key() -> str:
-    """APIキーを取得する（session_state優先、.env フォールバック）"""
+    """APIキーを取得する（session_state → DB → .env の優先順で確認）"""
     import os
+    # 1. session_state（設定画面で入力・同セッション内）
     key = st.session_state.get("gemini_api_key", "")
-    if not key:
-        key = os.environ.get("GEMINI_API_KEY", "")
-    return key
+    if key:
+        return key
+    # 2. SQLite DB（設定画面で「APIキーを保存」した永続値）
+    try:
+        from utils.db_logs import get_setting
+        key = get_setting("gemini_api_key", "")
+        if key:
+            return key
+    except Exception:
+        pass
+    # 3. .env / 環境変数
+    return os.environ.get("GEMINI_API_KEY", "")
 
 
 def analyze_form_with_ai(form_html: str) -> Optional[dict]:

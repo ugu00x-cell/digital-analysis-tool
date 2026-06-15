@@ -6,50 +6,90 @@ echo ""
 
 cd "$(dirname "$0")"
 
-echo "[1/3] 必要なライブラリをインストールしています..."
+# === [0/4] Python の存在確認 ===
+echo "[0/4] Python の確認中..."
+if ! command -v python3 &> /dev/null; then
+    echo "Python が見つかりません。自動インストールを試みます..."
+    echo ""
+
+    # Homebrew の確認
+    if ! command -v brew &> /dev/null; then
+        echo "Homebrew が見つかりません。先に Homebrew をインストールします..."
+        echo "（パスワードを2回求められます）"
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        if [ $? -ne 0 ]; then
+            echo ""
+            echo "[エラー] Homebrew のインストールに失敗しました。"
+            echo "手動で Python をインストールしてください: https://www.python.org/downloads/"
+            read -p "Enterキーを押して終了..."
+            exit 1
+        fi
+        # PATH反映
+        if [ -f /opt/homebrew/bin/brew ]; then
+            eval "$(/opt/homebrew/bin/brew shellenv)"
+        elif [ -f /usr/local/bin/brew ]; then
+            eval "$(/usr/local/bin/brew shellenv)"
+        fi
+    fi
+
+    echo "Python 3 をインストールします（数分かかります）..."
+    brew install python@3.13
+    if [ $? -ne 0 ]; then
+        echo "[エラー] Python の自動インストールに失敗しました。"
+        echo "手動でインストールしてください: https://www.python.org/downloads/"
+        read -p "Enterキーを押して終了..."
+        exit 1
+    fi
+fi
+echo "Python 確認OK"
+echo ""
+
+# === [1/4] ライブラリインストール ===
+echo "[1/4] ライブラリをインストールしています..."
 echo "      （数分かかる場合があります）"
 echo ""
+python3 -m pip install --upgrade pip > /dev/null 2>&1
 python3 -m pip install -r requirements.txt
 if [ $? -ne 0 ]; then
     echo ""
     echo "[エラー] ライブラリのインストールに失敗しました。"
-    echo "Pythonがインストールされているか確認してください。"
-    echo "https://www.python.org/downloads/"
-    echo ""
     read -p "Enterキーを押して終了..."
     exit 1
 fi
 echo ""
 
-echo "[2/3] ブラウザエンジンをインストールしています..."
+# === [2/4] Playwright ブラウザインストール ===
+echo "[2/4] ブラウザエンジンをインストールしています..."
 echo "      （初回は数分かかります）"
 echo ""
 python3 -m playwright install chromium
 if [ $? -ne 0 ]; then
     echo ""
     echo "[エラー] ブラウザエンジンのインストールに失敗しました。"
-    echo ""
     read -p "Enterキーを押して終了..."
     exit 1
 fi
 echo ""
 
-echo "[3/3] 設定ファイルを準備しています..."
+# === [3/4] 設定ファイル準備 ===
+echo "[3/4] 設定ファイルを準備しています..."
 if [ ! -f .env ]; then
-    echo "OPENAI_API_KEY=sk-your-api-key-here" > .env
-    echo ".envファイルを作成しました。"
+    if [ -f .env.example ]; then
+        cp .env.example .env
+        echo ".env ファイルを作成しました。"
+    fi
 else
-    echo ".envファイルは既に存在します。スキップしました。"
+    echo ".env ファイルは既に存在します。"
 fi
 echo ""
 
+# === [4/4] 完了 ===
 echo "========================================"
-echo "  セットアップが完了しました！"
+echo "  セットアップ完了！"
 echo "========================================"
 echo ""
 echo "次のステップ："
-echo "  1. .env ファイルを開き、OpenAI APIキーを設定"
-echo "     （なくても基本動作します）"
-echo "  2. 起動.command をダブルクリックしてツールを起動"
+echo "  1. 「起動.command」をダブルクリックしてツール起動"
+echo "  2. 設定画面で API キー（Gemini・2Captcha）を入力"
 echo ""
 read -p "Enterキーを押して終了..."

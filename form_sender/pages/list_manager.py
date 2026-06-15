@@ -11,6 +11,43 @@ from config import INPUT_DIR
 logger = logging.getLogger(__name__)
 
 
+def _read_csv_auto_encoding(uploaded_file) -> "pd.DataFrame | None":
+    """文字コードを自動判定してCSVを読み込む
+
+    UTF-8（BOM付き含む）→ Shift-JIS（cp932）→ EUC-JP の順で試行。
+    全て失敗したらエラーを表示してNoneを返す。
+
+    Args:
+        uploaded_file: StreamlitのUploadedFile
+
+    Returns:
+        読み込んだDataFrame、失敗時はNone
+    """
+    import io
+
+    raw_bytes = uploaded_file.getvalue()
+    encodings = ["utf-8-sig", "utf-8", "cp932", "shift_jis", "euc_jp"]
+    last_error = None
+
+    for enc in encodings:
+        try:
+            df = pd.read_csv(io.BytesIO(raw_bytes), encoding=enc)
+            logger.info("CSV読み込み成功: encoding=%s", enc)
+            if enc != "utf-8-sig" and enc != "utf-8":
+                st.info(f"💡 {enc}でCSVを読み込みました（Excelの「CSV(コンマ区切り)」形式等に対応）")
+            return df
+        except (UnicodeDecodeError, pd.errors.ParserError) as e:
+            last_error = e
+            continue
+
+    st.error(
+        f"❌ CSV読み込みエラー: 文字コードが判別できません。\n\n"
+        f"対応形式: UTF-8、Shift-JIS、EUC-JP\n\n"
+        f"詳細: {last_error}"
+    )
+    return None
+
+
 def _save_csv(uploaded_file) -> Path:
     """アップロードされたCSVを保存する
 
@@ -64,10 +101,8 @@ def render() -> None:
     )
 
     if uploaded is not None:
-        try:
-            df = pd.read_csv(uploaded)
-        except Exception as e:
-            st.error(f"CSV読み込みエラー: {e}")
+        df = _read_csv_auto_encoding(uploaded)
+        if df is None:
             return
 
         # バリデーション
@@ -106,3 +141,6 @@ def render() -> None:
         st.caption(f"表示: {len(filtered)} / 全{len(df)}件")
     else:
         st.info("CSVファイルをアップロードしてください")
+
+
+render()
