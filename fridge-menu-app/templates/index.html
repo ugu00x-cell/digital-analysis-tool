@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>冷蔵庫から献立提案</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 40px 16px;
+    }
+    .container {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+      padding: 40px;
+      width: 100%;
+      max-width: 640px;
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+      color: #2d6a4f;
+    }
+    p.sub {
+      font-size: 0.9rem;
+      color: #666;
+      margin-bottom: 24px;
+    }
+    textarea {
+      width: 100%;
+      border: 1.5px solid #ccc;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 1rem;
+      resize: vertical;
+      min-height: 100px;
+      transition: border-color 0.2s;
+    }
+    textarea:focus {
+      outline: none;
+      border-color: #2d6a4f;
+    }
+    button {
+      margin-top: 16px;
+      width: 100%;
+      padding: 14px;
+      background: #2d6a4f;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover { background: #1b4332; }
+    button:disabled { background: #aaa; cursor: not-allowed; }
+    #result {
+      margin-top: 32px;
+      background: #f8fdf9;
+      border-radius: 8px;
+      padding: 20px;
+      min-height: 60px;
+      white-space: pre-wrap;
+      line-height: 1.8;
+      font-size: 0.95rem;
+      display: none;
+    }
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #fff;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🍳 冷蔵庫から献立を提案</h1>
+    <p class="sub">今ある食材を入力すると、AIが献立を考えてくれます</p>
+
+    <textarea
+      id="ingredients"
+      placeholder="例：卵、玉ねぎ、にんじん、鶏肉、醤油、みりん"
+    ></textarea>
+
+    <button id="btn" onclick="generate()">献立を考える</button>
+
+    <div id="result"></div>
+  </div>
+
+  <script>
+    async function generate() {
+      const ingredients = document.getElementById('ingredients').value.trim();
+      if (!ingredients) {
+        alert('食材を入力してください');
+        return;
+      }
+
+      const btn = document.getElementById('btn');
+      const result = document.getElementById('result');
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>考え中…';
+      result.style.display = 'block';
+      result.textContent = '';
+
+      const formData = new FormData();
+      formData.append('ingredients', ingredients);
+
+      try {
+        const response = await fetch('/generate', { method: 'POST', body: formData });
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop(); // 未完了行を次へ持ち越し
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const text = line.slice(6);
+              if (text === '[DONE]') break;
+              result.textContent += text;
+            }
+          }
+        }
+      } catch (e) {
+        result.textContent = 'エラーが発生しました。もう一度お試しください。';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '献立を考える';
+      }
+    }
+
+    // Enterキー（Ctrl+Enter）でも送信
+    document.getElementById('ingredients').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.ctrlKey) generate();
+    });
+  </script>
+</body>
+</html>
