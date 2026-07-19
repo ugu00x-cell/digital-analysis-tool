@@ -3,6 +3,7 @@ import logging
 import os
 
 from flask import Flask, Response, render_template, request, stream_with_context
+from flask_cors import CORS
 from dotenv import load_dotenv
 
 from services.menu_generator import generate_menu_stream
@@ -20,6 +21,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+# Next.js開発サーバー(localhost:3000)からのAPIアクセスを許可
+CORS(app, resources={r"/generate": {"origins": "http://localhost:3000"}})
 
 
 @app.route("/")
