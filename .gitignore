@@ -22,3 +22,6 @@ Thumbs.db
 app.log
 *.db
 pdca_dashboard/data/
+
+# 独立リポジトリとして管理（realtime-chat-app）
+realtime-chat-app/
