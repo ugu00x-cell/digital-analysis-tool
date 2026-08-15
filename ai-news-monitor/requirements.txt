@@ -1,0 +1,26 @@
+# AI News Monitor - Python Dependencies
+
+# 外部API連携
+requests>=2.28.0         # HTTP リクエスト（X API用）
+
+# RSSフィード解析
+feedparser>=6.0.0        # RSS/Atom パース
+
+# データ処理
+pydantic>=2.0.0          # データバリデーション・型定義
+
+# スケジューリング（将来のPhase 2用）
+apscheduler>=3.10.0      # ジョブスケジューリング
+
+# ロギング
+python-json-logger>=2.0.4  # JSON形式ログ（オプション）
+
+# 開発・テスト用
+pytest>=7.0.0            # テストフレームワーク
+pytest-cov>=4.0.0        # カバレッジ計測
+black>=23.0.0            # コードフォーマッタ
+flake8>=6.0.0            # コード品質チェック
+mypy>=1.0.0              # 型チェック
+
+# オプション
+python-dotenv>=1.0.0     # .env ファイル読み込み
