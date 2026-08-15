@@ -1,10 +1,13 @@
 """
-2段階マッチングで消込を行うモジュール。
+3段階マッチングで消込を行うモジュール。
 
 処理の流れ：
-  ① 仕入れ総額（手打ち値）と利用金額で突き合わせ
-  ② ①でダメなら、単価×個数で再計算した金額で突き合わせ
-  ③ それでもダメなら、バク楽側は「要確認」
+  ① 仕入れ総額（手打ち値）と利用金額で完全一致マッチ
+  ② ①でダメなら、単価×個数で再計算した金額で完全一致マッチ（手打ちミス検出）
+  ③ ②でもダメなら、マイナス差（JCB < 発注表）で 1〜100円 のみ許容してマッチ
+     （業務上の「未修正残」許容範囲）
+     プラス差は許容しない（プロセス上ありえない＝担当ミス候補）
+  ④ それでもダメなら、明細側は「要確認」、発注表側は「グレー」
 
 マッチ済みの発注は二度使わない（1対1マッチング）。
 """
@@ -75,6 +78,93 @@ def _find_matching_order(
     return None
 
 
+def _find_best_pair_candidate(
+    tx: Transaction,
+    orders: list[Order],
+    used_ids: set[int],
+) -> tuple[Order, int] | None:
+    """
+    要確認JCBに対して、未マッチ発注からベストなペア候補を探す。
+
+    完全一致ではないが「同日近辺・金額が一定範囲内に近い」発注を
+    ペア候補として紐付ける。最近傍（日付差最小→金額差絶対値最小）を選ぶ。
+
+    Args:
+        tx: 対象のクレカ明細（要確認になっているもの）
+        orders: 未マッチの発注リスト（グレーになる予定のもの）
+        used_ids: 既にペアリング済みの Order.row_index 集合
+
+    Returns:
+        (マッチした Order, 差額) のタプル。候補なしなら None。
+    """
+    best: tuple[Order, int, tuple[int, int]] | None = None
+    max_abs_diff = config.PAIR_MAX_ABS_DIFF
+
+    for order in orders:
+        if order.row_index in used_ids:
+            continue
+        if not _is_date_within_tolerance(tx.used_at, order.ordered_at):
+            continue
+
+        diff = tx.amount - order.total
+        if abs(diff) > max_abs_diff:
+            continue
+
+        # スコア: 日付差最小 → 金額差絶対値最小
+        score = (abs((tx.used_at - order.ordered_at).days), abs(diff))
+        if best is None or score < best[2]:
+            best = (order, diff, score)
+
+    if best is None:
+        return None
+    order, diff, _ = best
+    return order, diff
+
+
+def _find_negative_diff_match(
+    tx: Transaction,
+    orders: list[Order],
+    used_ids: set[int],
+) -> tuple[Order, int] | None:
+    """
+    マイナス差（JCB < 発注表）の許容範囲内でベストマッチを探す。
+
+    プラス差（JCB > 発注表）は絶対に許容しない（プロセス上ありえないため）。
+    複数候補がある場合は、日付差が最小→金額差の絶対値が最小 を優先する。
+
+    Args:
+        tx: 対象のクレカ明細
+        orders: 発注のリスト
+        used_ids: マッチ済みの row_index 集合
+
+    Returns:
+        (マッチした Order, 差額) のタプル。マッチなしなら None。
+    """
+    diff_min, diff_max = config.NEGATIVE_DIFF_TOLERANCE_RANGE
+    best: tuple[Order, int, tuple[int, int]] | None = None
+
+    for order in orders:
+        if order.row_index in used_ids:
+            continue
+        if not _is_date_within_tolerance(tx.used_at, order.ordered_at):
+            continue
+
+        diff = tx.amount - order.total
+        # マイナス差の許容範囲のみ
+        if not (diff_min <= diff <= diff_max):
+            continue
+
+        # スコア: 日付差最小 → 金額差絶対値最小
+        score = (abs((tx.used_at - order.ordered_at).days), abs(diff))
+        if best is None or score < best[2]:
+            best = (order, diff, score)
+
+    if best is None:
+        return None
+    order, diff, _ = best
+    return order, diff
+
+
 def match_transactions(
     transactions: list[Transaction],
     orders: list[Order],
@@ -110,7 +200,7 @@ def match_transactions(
         else:
             unresolved.append(tx)
 
-    # ② 再計算値（単価×個数）でマッチ
+    # ② 再計算値（単価×個数）でマッチ（手打ちミス検出）
     still_unresolved: list[Transaction] = []
     for tx in unresolved:
         order = _find_matching_order(tx, orders, used_order_ids, use_recalculated=True)
@@ -129,8 +219,57 @@ def match_transactions(
         else:
             still_unresolved.append(tx)
 
-    # ③ それでもマッチしなかったバク楽明細は「要確認」
-    for tx in still_unresolved:
+    # ③ マイナス差許容マッチ（プロセス上の「未修正残」を吸収）
+    final_unresolved: list[Transaction] = []
+    if config.ENABLE_NEGATIVE_DIFF_TOLERANCE:
+        for tx in still_unresolved:
+            match = _find_negative_diff_match(tx, orders, used_order_ids)
+            if match is not None:
+                order, diff = match
+                used_order_ids.add(order.row_index)
+                note = f"マイナス差 {diff:+,}円（未修正残として許容）"
+                results.append(
+                    MatchResult(
+                        transaction=tx,
+                        order=order,
+                        status_label=config.STATUS_MATCHED_TOLERANCE,
+                        note=note,
+                    )
+                )
+            else:
+                final_unresolved.append(tx)
+    else:
+        final_unresolved = still_unresolved
+
+    # ④ ペア候補マッチ：未マッチJCB ↔ 未マッチ発注 を差額付きで紐付ける
+    # （完全一致ではないので消込扱いではないが、業務側の確認工数を削減）
+    paired_order_ids: set[int] = set()
+    truly_unresolved: list[Transaction] = []
+    if config.ENABLE_PAIR_MATCHING:
+        # 未マッチ発注のリスト
+        unmatched_orders = [
+            o for o in orders if o.row_index not in used_order_ids
+        ]
+        for tx in final_unresolved:
+            best = _find_best_pair_candidate(tx, unmatched_orders, paired_order_ids)
+            if best is not None:
+                order, diff = best
+                paired_order_ids.add(order.row_index)
+                results.append(
+                    MatchResult(
+                        transaction=tx,
+                        order=order,
+                        status_label=config.STATUS_PAIR_CANDIDATE,
+                        note=f"差額 {diff:+,}円・同日±{config.DATE_TOLERANCE_DAYS}日内のペア候補",
+                    )
+                )
+            else:
+                truly_unresolved.append(tx)
+    else:
+        truly_unresolved = final_unresolved
+
+    # ⑤ それでもマッチしなかったバク楽明細は「要確認」
+    for tx in truly_unresolved:
         results.append(
             MatchResult(
                 transaction=tx,
@@ -140,10 +279,12 @@ def match_transactions(
             )
         )
 
-    # ④ 消し込まれなかった発注は「グレー」として追加
+    # ⑥ 消し込まれず、ペアにもならなかった発注は「グレー」として追加
     for order in orders:
         if order.row_index in used_order_ids:
             continue
+        if order.row_index in paired_order_ids:
+            continue  # Stage 4 でペアリング済み
         results.append(
             MatchResult(
                 transaction=None,
@@ -154,9 +295,12 @@ def match_transactions(
         )
 
     logger.info(
-        "マッチング完了: 消込%d / 再計算%d / 要確認%d / グレー%d",
+        "マッチング完了: 消込%d / 再計算%d / マイナス差許容%d / "
+        "ペア候補%d / 要確認%d / グレー%d",
         sum(1 for r in results if r.status_label == config.STATUS_MATCHED),
         sum(1 for r in results if r.status_label == config.STATUS_MATCHED_RECALC),
+        sum(1 for r in results if r.status_label == config.STATUS_MATCHED_TOLERANCE),
+        sum(1 for r in results if r.status_label == config.STATUS_PAIR_CANDIDATE),
         sum(1 for r in results if r.status_label == config.STATUS_SUSPICIOUS),
         sum(1 for r in results if r.status_label == config.STATUS_GRAY),
     )

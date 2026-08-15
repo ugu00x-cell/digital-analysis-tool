@@ -1,0 +1,54 @@
+version: '3.9'
+
+services:
+  ai-news-monitor:
+    build: .
+    container_name: ai-news-monitor
+    restart: unless-stopped
+    environment:
+      # X API 認証
+      X_BEARER_TOKEN: ${X_BEARER_TOKEN:-}
+      X_API_KEY: ${X_API_KEY:-}
+      X_API_SECRET: ${X_API_SECRET:-}
+      X_ACCESS_TOKEN: ${X_ACCESS_TOKEN:-}
+      X_ACCESS_TOKEN_SECRET: ${X_ACCESS_TOKEN_SECRET:-}
+
+      # Slack Webhook
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+
+      # Database
+      DB_PATH: /app/data/ai_news.db
+
+      # Application
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+
+      # Scheduling
+      SCHEDULER_MORNING_HOUR: ${SCHEDULER_MORNING_HOUR:-8}
+      SCHEDULER_MORNING_MINUTE: ${SCHEDULER_MORNING_MINUTE:-0}
+      SCHEDULER_EVENING_HOUR: ${SCHEDULER_EVENING_HOUR:-20}
+      SCHEDULER_EVENING_MINUTE: ${SCHEDULER_EVENING_MINUTE:-0}
+
+      # Rate limiting
+      X_REQUEST_DELAY_SEC: ${X_REQUEST_DELAY_SEC:-1.0}
+      SLACK_TIMEOUT_SEC: ${SLACK_TIMEOUT_SEC:-5}
+
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # リソース制限（オプション）
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M

@@ -1,0 +1,28 @@
+# Core scientific stack
+numpy>=1.26.0
+pandas>=2.0.0
+scipy>=1.14.0
+scikit-learn>=1.4.0
+matplotlib>=3.8.0
+
+# Audio / signal processing
+librosa>=0.11.0
+soundfile>=0.12.0
+
+# Deep learning (Threshold analysis Stage3 / DCASE 2026)
+# GPU版を使う場合は以下のコマンドで個別インストール推奨:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Utilities
+tqdm>=4.65.0
+requests>=2.31.0
+pyyaml>=6.0.0
+
+# Jupyter
+jupyter>=1.0.0
+ipykernel>=6.28.0
+
+# 可視化（Optional - Streamlit系サブモジュール用）
+# streamlit>=1.30.0

@@ -11,7 +11,13 @@ from datetime import datetime
 from services.collector.rss_scraper import fetch_rss_feeds
 from services.collector.x_scraper import fetch_account_timeline, search_keywords
 from services.notifier.slack_sender import send_test_message, send_to_slack
-from shared.config import validate_config
+from shared.config import (
+    SCHEDULER_EVENING_HOUR,
+    SCHEDULER_EVENING_MINUTE,
+    SCHEDULER_MORNING_HOUR,
+    SCHEDULER_MORNING_MINUTE,
+    validate_config,
+)
 from shared.database import get_database
 from shared.logger import setup_logger
 from shared.models import NewsItem
@@ -144,6 +150,16 @@ def main():
         action="store_true",
         help="設定をバリデート",
     )
+    parser.add_argument(
+        "--daemon",
+        action="store_true",
+        help="デーモンモード：24時間常駐でスケジューリング実行（朝8時・夜20時）",
+    )
+    parser.add_argument(
+        "--list-jobs",
+        action="store_true",
+        help="登録されているジョブを表示",
+    )
 
     args = parser.parse_args()
 
@@ -165,6 +181,39 @@ def main():
             logger.info("Sending test message to Slack...")
             success = send_test_message()
             return 0 if success else 1
+
+        # デーモンモード（スケジューリング）
+        if args.daemon:
+            logger.info("Starting daemon mode (scheduled execution)...")
+            from services.scheduler.jobs import get_scheduler
+
+            scheduler_mgr = get_scheduler()
+            scheduler_mgr.configure()
+            scheduler_mgr.start()
+
+            logger.info("Scheduler is running. Press Ctrl+C to stop.")
+            logger.info(f"Morning job: {SCHEDULER_MORNING_HOUR}:{SCHEDULER_MORNING_MINUTE:02d}")
+            logger.info(f"Evening job: {SCHEDULER_EVENING_HOUR}:{SCHEDULER_EVENING_MINUTE:02d}")
+
+            try:
+                import time
+
+                while True:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                logger.info("Stopping scheduler...")
+                scheduler_mgr.stop()
+                logger.info("Scheduler stopped")
+                return 0
+
+        # ジョブ一覧表示
+        if args.list_jobs:
+            logger.info("Listing registered jobs...")
+            from services.scheduler.jobs import get_scheduler
+
+            scheduler_mgr = get_scheduler()
+            scheduler_mgr.list_jobs()
+            return 0
 
         # 通常実行：収集 → 保存 → 通知
         items = collect_news()

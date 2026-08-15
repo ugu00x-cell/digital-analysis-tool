@@ -1,4 +1,4 @@
-# AI News Monitor - Python Dependencies
+﻿# AI News Monitor - Python Dependencies
 
 # 外部API連携
 requests>=2.28.0         # HTTP リクエスト（X API用）
@@ -24,3 +24,4 @@ mypy>=1.0.0              # 型チェック
 
 # オプション
 python-dotenv>=1.0.0     # .env ファイル読み込み
+

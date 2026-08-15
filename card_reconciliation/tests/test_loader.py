@@ -88,8 +88,8 @@ def test_load_order_basic(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
 
     assert len(orders) == 1
     order = orders[0]
-    assert order.unit_price == 500
-    assert order.quantity == 3
+    assert order.unit_price_a == 500
+    assert order.quantity_a == 3
     assert order.total == 1500
     assert order.recalculated_total == 1500
 

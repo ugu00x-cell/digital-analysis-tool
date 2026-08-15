@@ -1,0 +1,11 @@
+.env
+__pycache__/
+*.pyc
+*.log
+data/input/
+data/logs/
+db/
+
+# クライアント固有情報を含むスクリプト
+dry_run_client.py
+dry_run_client_v2.py

@@ -18,6 +18,7 @@ from typing import AsyncGenerator
 import httpx
 import numpy as np
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 from services.analyzer.engine import analyze
 from shared.config import ANALYZER_PORT, NOTIFIER_URL
@@ -52,6 +53,14 @@ app = FastAPI(
     description="蓄積された振動データをFFT+エンベロープ解析し異常判定するサービス",
     version="1.0.0",
     lifespan=lifespan,
+)
+
+# Next.js開発サーバー(localhost:3000)からのAPIアクセスを許可
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
