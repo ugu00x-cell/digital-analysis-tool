@@ -19,6 +19,14 @@
 - [ ] 【要クライアント確認・送信待ち】既存GAS（CSV取込部分）のソースコード開示可否
 - [ ] トライアル見積り（10〜15H）の対象範囲を上記ヒアリング後に再確認
 
+### 音声タスクリスト自動化ツール（voice_tasklist）叩き台
+- [x] 音声入力→タスク保存スクリプト実装（[voice_tasklist/voice_task_recorder.py](voice_tasklist/voice_task_recorder.py)）
+- [x] `SpeechRecognition`・`PyAudio`インストール（Python 3.13、ビルド済みwheelで問題なく導入）
+- [x] pytest 5 PASSED（正常系2・異常系2・境界値1）
+- [x] 実機動作確認完了 → 音声入力からタスク保存まで成功
+- [ ] 毎朝の自動実行化（タスクスケジューラ／`schedule`スキル連携）を検討
+- [ ] 複数タスク一括発話への対応は現状未対応（叩き台のスコープ外）
+
 ## 2026-08-14
 
 ### プロンプトエンジニアリング演習（CLAUDE.md・指示文構造化）フォローアップ
