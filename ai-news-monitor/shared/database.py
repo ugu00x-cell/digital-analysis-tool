@@ -51,12 +51,17 @@ class Database:
                     keywords TEXT,
                     raw_text TEXT NOT NULL,
                     author TEXT,
-                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                    UNIQUE(url),
-                    INDEX idx_published_at (published_at),
-                    INDEX idx_source (source)
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
                 )
                 """
+            )
+
+            # インデックスを作成
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_published_at ON news_items(published_at)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_source ON news_items(source)"
             )
 
             # 通知履歴テーブル
